@@ -1,6 +1,6 @@
 import formidable from 'formidable';
 import fs from 'fs';
-import pdf from 'pdf-parse';
+import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
 export const config = {
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
         if (mimeType === 'application/pdf') {
             const dataBuffer = fs.readFileSync(filePath);
-            const data = await pdf(dataBuffer);
+            const data = await pdfParse.default(dataBuffer);
             resumeText = data.text;
         } else if (
             mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
