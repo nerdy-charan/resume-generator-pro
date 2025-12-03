@@ -1,15 +1,9 @@
-import formidable from 'formidable';
-import fs from 'fs';
-import * as pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
+const formidable = require('formidable');
+const fs = require('fs');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,7 +39,7 @@ export default async function handler(req, res) {
 
         if (mimeType === 'application/pdf') {
             const dataBuffer = fs.readFileSync(filePath);
-            const data = await pdfParse.default(dataBuffer);
+            const data = await pdfParse(dataBuffer);
             resumeText = data.text;
         } else if (
             mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -54,14 +48,18 @@ export default async function handler(req, res) {
             const result = await mammoth.extractRawText({ path: filePath });
             resumeText = result.value;
         } else {
-            return res.status(400).json({ error: 'Unsupported file type' });
+            return res.status(400).json({ error: 'Unsupported file type. Please upload PDF or DOCX.' });
         }
 
         // Clean up uploaded file
-        fs.unlinkSync(filePath);
+        try {
+            fs.unlinkSync(filePath);
+        } catch (e) {
+            // Ignore cleanup errors
+        }
 
         if (!resumeText || resumeText.trim().length < 50) {
-            return res.status(400).json({ error: 'Could not extract enough text from file' });
+            return res.status(400).json({ error: 'Could not extract enough text from file. Please make sure your resume contains text (not just images).' });
         }
 
         // Parse with Claude
@@ -130,9 +128,8 @@ Extract the information now:`;
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Claude API error:', errorText);
-            return res.status(response.status).json({
-                error: 'Claude API error',
-                details: errorText
+            return res.status(500).json({
+                error: 'AI parsing failed. Please try again.'
             });
         }
 
@@ -147,7 +144,7 @@ Extract the information now:`;
             message: error.message
         });
     }
-}
+};
 
 function parseResponse(text) {
     try {
