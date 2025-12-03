@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { profileService } from '../../services/profileService';
-import { resumeParserService } from '../../services/resumeParserService';
+import resumeParserService from '../../services/resumeParserService';
 
 function ProfileSetup({ onComplete }) {
     const { user } = useAuth();
