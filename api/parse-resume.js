@@ -1,3 +1,14 @@
+import formidable from 'formidable';
+import fs from 'fs';
+import pdf from 'pdf-parse';
+import mammoth from 'mammoth';
+
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
+
 export default async function handler(req, res) {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -18,12 +29,42 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { resumeText } = req.body;
+        // Parse form data
+        const form = formidable({});
+        const [fields, files] = await form.parse(req);
 
-        if (!resumeText) {
-            return res.status(400).json({ error: 'Missing resume text' });
+        const uploadedFile = files.file?.[0];
+        if (!uploadedFile) {
+            return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        // Extract text based on file type
+        let resumeText;
+        const filePath = uploadedFile.filepath;
+        const mimeType = uploadedFile.mimetype;
+
+        if (mimeType === 'application/pdf') {
+            const dataBuffer = fs.readFileSync(filePath);
+            const data = await pdf(dataBuffer);
+            resumeText = data.text;
+        } else if (
+            mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            mimeType === 'application/msword'
+        ) {
+            const result = await mammoth.extractRawText({ path: filePath });
+            resumeText = result.value;
+        } else {
+            return res.status(400).json({ error: 'Unsupported file type' });
+        }
+
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+
+        if (!resumeText || resumeText.trim().length < 50) {
+            return res.status(400).json({ error: 'Could not extract enough text from file' });
+        }
+
+        // Parse with Claude
         const prompt = `You are an expert at parsing resumes. Extract structured information from this resume text.
 
 RESUME TEXT:
@@ -69,7 +110,6 @@ IMPORTANT: Return ONLY valid JSON (no markdown, no code blocks) in this EXACT st
 
 Extract the information now:`;
 
-        // Call Claude API
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {

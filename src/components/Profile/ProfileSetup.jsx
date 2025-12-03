@@ -43,14 +43,23 @@ function ProfileSetup({ onComplete }) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Check file type
+        const validTypes = [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword'
+        ];
+
+        if (!validTypes.includes(file.type)) {
+            alert('Please upload a PDF or DOCX file');
+            return;
+        }
+
         setParsing(true);
 
         try {
-            // Extract text from file
-            const resumeText = await resumeParserService.extractTextFromFile(file);
-
-            // Parse with AI
-            const parsedData = await resumeParserService.parseResumeWithAI(resumeText);
+            // Parse file (backend handles extraction + AI parsing)
+            const parsedData = await resumeParserService.parseResumeFile(file);
 
             // Update form with parsed data
             setFormData(parsedData);
