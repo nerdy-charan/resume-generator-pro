@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { profileService } from '../../services/profileService';
 import { claudeService } from '../../services/claudeService';
-import { docxService } from '../../services/docxService';
+import docxService from '../../services/docxService';
 import ResumeEditor from '../Editor/ResumeEditor';
 
 function ResumeGenerator() {
@@ -177,8 +177,8 @@ function ResumeGenerator() {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="font-semibold text-gray-800">ATS Score:</span>
                                         <span className={`text-2xl font-bold ${result.atsScore >= 80 ? 'text-green-600' :
-                                                result.atsScore >= 60 ? 'text-yellow-600' :
-                                                    'text-red-600'
+                                            result.atsScore >= 60 ? 'text-yellow-600' :
+                                                'text-red-600'
                                             }`}>
                                             {result.atsScore}%
                                         </span>
@@ -186,8 +186,8 @@ function ResumeGenerator() {
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                             className={`h-2 rounded-full ${result.atsScore >= 80 ? 'bg-green-600' :
-                                                    result.atsScore >= 60 ? 'bg-yellow-600' :
-                                                        'bg-red-600'
+                                                result.atsScore >= 60 ? 'bg-yellow-600' :
+                                                    'bg-red-600'
                                                 }`}
                                             style={{ width: `${result.atsScore}%` }}
                                         />
