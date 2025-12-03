@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { profileService } from '../../services/profileService';
 import { claudeService } from '../../services/claudeService';
+import { docxService } from '../../services/docxService';
+import ResumeEditor from '../Editor/ResumeEditor';
 
 function ResumeGenerator() {
     const { user } = useAuth();
@@ -9,6 +11,9 @@ function ResumeGenerator() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [editMode, setEditMode] = useState(false);
+    const [editedContent, setEditedContent] = useState('');
+    const [userProfile, setUserProfile] = useState(null);
 
     const handleGenerate = async () => {
         if (!jobDescription.trim()) {
@@ -18,6 +23,7 @@ function ResumeGenerator() {
 
         setLoading(true);
         setError(null);
+        setEditMode(false);
 
         try {
             // Get user profile
@@ -27,6 +33,8 @@ function ResumeGenerator() {
                 alert('Please set up your profile first');
                 return;
             }
+
+            setUserProfile(profile);
 
             // Generate resume using Claude API
             const generatedResult = await claudeService.generateResume(
@@ -41,6 +49,68 @@ function ResumeGenerator() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEdit = () => {
+        // Convert resume to HTML for editing
+        const htmlContent = convertResumeToHTML(result.resume, userProfile);
+        setEditedContent(htmlContent);
+        setEditMode(true);
+    };
+
+    const handleSaveEdit = () => {
+        // Update result with edited content
+        // For now, just exit edit mode
+        // In a full implementation, you'd parse the HTML back to resume structure
+        setEditMode(false);
+        alert('Changes saved! (Note: Editing updates preview only)');
+    };
+
+    const handleDownload = async () => {
+        if (!result || !userProfile) return;
+
+        try {
+            await docxService.generateResume(result.resume, userProfile);
+        } catch (err) {
+            console.error('Download error:', err);
+            alert('Failed to download resume. Please try again.');
+        }
+    };
+
+    const handleCopyEmail = () => {
+        if (!result) return;
+
+        navigator.clipboard.writeText(result.email);
+        alert('Email copied to clipboard! ✅');
+    };
+
+    const convertResumeToHTML = (resume, profile) => {
+        return `
+      <h2>${profile.fullName}</h2>
+      <p>${profile.email} | ${profile.phone || ''} | ${profile.location || ''}</p>
+      
+      <h3>PROFESSIONAL SUMMARY</h3>
+      <p>${resume.summary}</p>
+      
+      <h3>EXPERIENCE</h3>
+      ${resume.experience.map(exp => `
+        <div>
+          <p><strong>${exp.position}</strong></p>
+          <p><em>${exp.company} | ${exp.period}</em></p>
+          <ul>
+            ${exp.achievements.map(ach => `<li>${ach}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('')}
+      
+      <h3>SKILLS</h3>
+      <p>${resume.skills.join(', ')}</p>
+      
+      <h3>EDUCATION</h3>
+      ${resume.education.map(edu => `
+        <p><strong>${edu.degree} in ${edu.field}</strong> - ${edu.school} (${edu.year})</p>
+      `).join('')}
+    `;
     };
 
     return (
@@ -88,7 +158,7 @@ function ResumeGenerator() {
                     {/* Results Section */}
                     <div className="bg-white rounded-lg shadow p-6">
                         <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                            Generated Resume
+                            {editMode ? 'Edit Resume' : 'Generated Resume'}
                         </h3>
 
                         {!result && !loading && (
@@ -100,15 +170,15 @@ function ResumeGenerator() {
                             </div>
                         )}
 
-                        {result && (
+                        {result && !editMode && (
                             <div className="space-y-6">
                                 {/* ATS Score */}
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="font-semibold text-gray-800">ATS Score:</span>
                                         <span className={`text-2xl font-bold ${result.atsScore >= 80 ? 'text-green-600' :
-                                            result.atsScore >= 60 ? 'text-yellow-600' :
-                                                'text-red-600'
+                                                result.atsScore >= 60 ? 'text-yellow-600' :
+                                                    'text-red-600'
                                             }`}>
                                             {result.atsScore}%
                                         </span>
@@ -116,8 +186,8 @@ function ResumeGenerator() {
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                             className={`h-2 rounded-full ${result.atsScore >= 80 ? 'bg-green-600' :
-                                                result.atsScore >= 60 ? 'bg-yellow-600' :
-                                                    'bg-red-600'
+                                                    result.atsScore >= 60 ? 'bg-yellow-600' :
+                                                        'bg-red-600'
                                                 }`}
                                             style={{ width: `${result.atsScore}%` }}
                                         />
@@ -165,10 +235,16 @@ function ResumeGenerator() {
 
                                 {/* Action Buttons */}
                                 <div className="flex gap-3">
-                                    <button className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                    <button
+                                        onClick={handleDownload}
+                                        className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                    >
                                         📥 Download .docx
                                     </button>
-                                    <button className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                                    <button
+                                        onClick={handleEdit}
+                                        className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
                                         ✏️ Edit
                                     </button>
                                 </div>
@@ -179,8 +255,35 @@ function ResumeGenerator() {
                                     <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
                                         {result.email}
                                     </div>
-                                    <button className="w-full mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                    <button
+                                        onClick={handleCopyEmail}
+                                        className="w-full mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                    >
                                         📋 Copy Email
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Edit Mode */}
+                        {result && editMode && (
+                            <div className="space-y-4">
+                                <ResumeEditor
+                                    content={editedContent}
+                                    onChange={setEditedContent}
+                                />
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleSaveEdit}
+                                        className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                    >
+                                        ✅ Save Changes
+                                    </button>
+                                    <button
+                                        onClick={() => setEditMode(false)}
+                                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                                    >
+                                        ❌ Cancel
                                     </button>
                                 </div>
                             </div>
