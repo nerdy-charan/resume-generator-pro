@@ -9,6 +9,8 @@ function ProfileSetup({ onComplete }) {
     const [loading, setLoading] = useState(false);
     const [uploadMode, setUploadMode] = useState(true);
     const [parsing, setParsing] = useState(false);
+    const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'text'
+    const [resumeText, setResumeText] = useState('');
 
     const [formData, setFormData] = useState({
         personalInfo: {
@@ -90,6 +92,31 @@ function ProfileSetup({ onComplete }) {
             alert('Resume parsed successfully! Review and edit the information below, then save. ✅');
         } catch (error) {
             console.error('Upload error:', error);
+            alert('Failed to parse resume. Please try again or fill manually.');
+        } finally {
+            setParsing(false);
+        }
+    };
+    const handleTextParse = async () => {
+        if (!resumeText.trim()) {
+            alert('Please paste your resume text');
+            return;
+        }
+
+        if (resumeText.trim().length < 100) {
+            alert('Please paste more content. The text seems too short.');
+            return;
+        }
+
+        setParsing(true);
+
+        try {
+            const parsedData = await resumeParserService.parseResumeText(resumeText);
+            setFormData(parsedData);
+            setUploadMode(false);
+            alert('Resume parsed successfully! Review and edit the information below, then save. ✅');
+        } catch (error) {
+            console.error('Parse error:', error);
             alert('Failed to parse resume. Please try again or fill manually.');
         } finally {
             setParsing(false);
@@ -444,20 +471,44 @@ function ProfileSetup({ onComplete }) {
                     {/* Upload or Manual Toggle */}
                     {uploadMode ? (
                         <div className="mb-8">
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+                            {/* Tabs for Upload Methods */}
+                            <div className="flex gap-2 mb-6 border-b border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMethod('file')}
+                                    className={`px-6 py-3 font-medium transition-colors ${uploadMethod === 'file'
+                                        ? 'text-blue-600 border-b-2 border-blue-600'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    📄 Upload File
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMethod('text')}
+                                    className={`px-6 py-3 font-medium transition-colors ${uploadMethod === 'text'
+                                        ? 'text-blue-600 border-b-2 border-blue-600'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    📋 Paste Text
+                                </button>
+                            </div>
+
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12">
                                 {parsing ? (
-                                    <div>
+                                    <div className="text-center">
                                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                                         <p className="text-gray-600">Parsing your resume with AI...</p>
                                         <p className="text-sm text-gray-500 mt-2">This may take 10-15 seconds</p>
                                     </div>
-                                ) : (
+                                ) : uploadMethod === 'file' ? (
                                     <>
-                                        <div className="text-5xl mb-4">📄</div>
-                                        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                            Upload Your Existing Resume
+                                        <div className="text-5xl mb-4 text-center">📄</div>
+                                        <h3 className="text-xl font-semibold text-gray-800 mb-2 text-center">
+                                            Upload Your Resume File
                                         </h3>
-                                        <p className="text-gray-600 mb-6">
+                                        <p className="text-gray-600 mb-6 text-center">
                                             AI will automatically extract all your information
                                         </p>
                                         <input
@@ -469,12 +520,43 @@ function ProfileSetup({ onComplete }) {
                                         />
                                         <label
                                             htmlFor="resume-upload"
-                                            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium"
+                                            className="block mx-auto w-fit bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium"
                                         >
                                             Choose File (DOCX only)
                                         </label>
-                                        <p className="text-sm text-gray-500 mt-4">
+                                        <p className="text-sm text-gray-500 mt-4 text-center">
                                             Supported format: DOCX (Word documents)
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-5xl mb-4 text-center">📋</div>
+                                        <h3 className="text-xl font-semibold text-gray-800 mb-2 text-center">
+                                            Paste Your Resume Text
+                                        </h3>
+                                        <p className="text-gray-600 mb-6 text-center">
+                                            Copy all text from your resume and paste it here
+                                        </p>
+
+                                        <textarea
+                                            value={resumeText}
+                                            onChange={(e) => setResumeText(e.target.value)}
+                                            placeholder="Paste your entire resume here...
+
+Example: Open your PDF/Word resume → Select All (Ctrl/Cmd+A) → Copy (Ctrl/Cmd+C) → Paste here"
+                                            className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4"
+                                        />
+
+                                        <button
+                                            onClick={handleTextParse}
+                                            disabled={!resumeText.trim()}
+                                            className="block mx-auto bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            ✨ Parse Resume with AI
+                                        </button>
+
+                                        <p className="text-sm text-gray-500 mt-4 text-center">
+                                            Works with text from PDF, DOCX, or any format
                                         </p>
                                     </>
                                 )}
