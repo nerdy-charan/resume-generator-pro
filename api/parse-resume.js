@@ -1,6 +1,5 @@
-const formidable = require('formidable');
+const { IncomingForm } = require('formidable');
 const fs = require('fs');
-const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 
 module.exports = async (req, res) => {
@@ -23,43 +22,59 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Parse form data
-        const form = formidable({});
-        const [fields, files] = await form.parse(req);
+        // Parse form data with correct formidable syntax
+        const form = new IncomingForm();
 
-        const uploadedFile = files.file?.[0];
+        const parsePromise = new Promise((resolve, reject) => {
+            form.parse(req, (err, fields, files) => {
+                if (err) reject(err);
+                else resolve({ fields, files });
+            });
+        });
+
+        const { fields, files } = await parsePromise;
+
+        const uploadedFile = files.file;
         if (!uploadedFile) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Extract text based on file type
-        let resumeText;
-        const filePath = uploadedFile.filepath;
-        const mimeType = uploadedFile.mimetype;
+        // Handle both single file and array
+        const file = Array.isArray(uploadedFile) ? uploadedFile[0] : uploadedFile;
+        const filePath = file.filepath;
+        const mimeType = file.mimetype;
 
-        if (mimeType === 'application/pdf') {
-            const dataBuffer = fs.readFileSync(filePath);
-            const data = await pdfParse(dataBuffer);
-            resumeText = data.text;
-        } else if (
+        let resumeText;
+
+        // Only support DOCX for now (PDF parsing has issues in serverless)
+        if (
             mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             mimeType === 'application/msword'
         ) {
             const result = await mammoth.extractRawText({ path: filePath });
             resumeText = result.value;
+        } else if (mimeType === 'application/pdf') {
+            // For PDF, ask user to convert to DOCX or use text paste
+            return res.status(400).json({
+                error: 'PDF support is limited. Please upload DOCX instead, or use the "Paste Text" option.'
+            });
         } else {
-            return res.status(400).json({ error: 'Unsupported file type. Please upload PDF or DOCX.' });
+            return res.status(400).json({
+                error: 'Unsupported file type. Please upload DOCX file.'
+            });
         }
 
         // Clean up uploaded file
         try {
             fs.unlinkSync(filePath);
         } catch (e) {
-            // Ignore cleanup errors
+            console.log('Cleanup error:', e);
         }
 
         if (!resumeText || resumeText.trim().length < 50) {
-            return res.status(400).json({ error: 'Could not extract enough text from file. Please make sure your resume contains text (not just images).' });
+            return res.status(400).json({
+                error: 'Could not extract enough text from file. Please make sure your resume contains text (not just images).'
+            });
         }
 
         // Parse with Claude

@@ -45,13 +45,12 @@ function ProfileSetup({ onComplete }) {
 
         // Check file type
         const validTypes = [
-            'application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/msword'
         ];
 
         if (!validTypes.includes(file.type)) {
-            alert('Please upload a PDF or DOCX file');
+            alert('Please upload a DOCX file');
             return;
         }
 
@@ -186,7 +185,7 @@ function ProfileSetup({ onComplete }) {
                                         </p>
                                         <input
                                             type="file"
-                                            accept=".pdf,.doc,.docx"
+                                            accept=".doc,.docx"
                                             onChange={handleFileUpload}
                                             className="hidden"
                                             id="resume-upload"
@@ -195,10 +194,10 @@ function ProfileSetup({ onComplete }) {
                                             htmlFor="resume-upload"
                                             className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium"
                                         >
-                                            Choose File (PDF or DOCX)
+                                            Choose File (DOCX only)
                                         </label>
                                         <p className="text-sm text-gray-500 mt-4">
-                                            Supported formats: PDF, DOC, DOCX
+                                            Supported format: DOCX (Word documents)
                                         </p>
                                     </>
                                 )}
