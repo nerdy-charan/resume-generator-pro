@@ -1,4 +1,5 @@
 const resumeParserService = {
+    // Parse from uploaded file
     async parseResumeFile(file) {
         try {
             const formData = new FormData();
@@ -22,14 +23,15 @@ const resumeParserService = {
         }
     },
 
-    async parseResumeText(text) {
+    // Parse from pasted text
+    async parseResumeText(resumeText) {
         try {
-            const response = await fetch('/api/parse-resume', {
+            const response = await fetch('/api/parse-resume-text', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ resumeText: text })
+                body: JSON.stringify({ resumeText })
             });
 
             if (!response.ok) {
